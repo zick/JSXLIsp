@@ -285,6 +285,16 @@ class Lisp {
       var sym = Cons.safeCar(args);
       this.addToEnv(sym, expr, this.g_env);
       return sym;
+    } else if (op == Symbol.make('setq')) {
+      var val = this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
+      var sym = Cons.safeCar(args);
+      var bind = this.findVar(sym, env);
+      if (bind == Nil.nil) {
+        this.addToEnv(sym, val, this.g_env);
+      } else {
+        bind.set_cdr(val);
+      }
+      return val;
     }
     return this.apply(this.eval(op, env), this.evlis(args, env), env);
   }
