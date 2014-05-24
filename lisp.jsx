@@ -347,10 +347,88 @@ class Lisp {
     return new Cons(Cons.safeCar(args), Cons.safeCar(Cons.safeCdr(args)));
   };
 
+  var subrEq = function(args : LObj) : LObj {
+    var x = Cons.safeCar(args);
+    var y = Cons.safeCar(Cons.safeCdr(args));
+    if (x.tag == 'num' && y.tag == 'num') {
+      if (x.num() == y.num()) {
+        return Symbol.make('t');
+      }
+      return Nil.nil;
+    } else if (x == y) {
+      return Symbol.make('t');
+    }
+    return Nil.nil;
+  };
+
+  var subrAtom = function(args : LObj) : LObj {
+    if (Cons.safeCar(args).tag == 'cons') {
+      return Nil.nil;
+    }
+    return Symbol.make('t');
+  };
+
+  var subrNumberp = function(args : LObj) : LObj {
+    if (Cons.safeCar(args).tag == 'num') {
+      return Symbol.make('t');
+    }
+    return Nil.nil;
+  };
+
+  var subrSymbolp = function(args : LObj) : LObj {
+    if (Cons.safeCar(args).tag == 'sym') {
+      return Symbol.make('t');
+    }
+    return Nil.nil;
+  };
+
+  static function subrAddOrMul(fn : function (:number, :number) : number,
+                               init_val : number) : function (:LObj) : LObj {
+    return function(args : LObj) : LObj {
+      var ret = init_val;
+      while (args.tag == 'cons') {
+        if (args.car().tag != 'num') {
+          return new Error1('wrong type');
+        }
+        ret = fn(ret, args.car().num());
+        args = args.cdr();
+      }
+      return new Num(ret);
+    };
+  }
+  var subrAdd = Lisp.subrAddOrMul((x : number, y :number) -> x + y, 0);
+  var subrMul = Lisp.subrAddOrMul((x : number, y :number) -> x * y, 1);
+
+  static function subrSubOrDivOrMod(fn : function (:number, :number) : number)
+      : function (:LObj) : LObj {
+    return function(args : LObj) : LObj {
+      var x = Cons.safeCar(args);
+      var y = Cons.safeCar(Cons.safeCdr(args));
+      if (x.tag != 'num' || y.tag != 'num') {
+        return new Error1('wrong type');
+      }
+      return new Num(fn(x.num(), y.num()));
+    };
+  }
+  var subrSub = Lisp.subrSubOrDivOrMod((x : number, y :number) -> x - y);
+  var subrDiv = Lisp.subrSubOrDivOrMod((x : number, y :number) -> x / y);
+  var subrMod = Lisp.subrSubOrDivOrMod((x : number, y :number) -> x % y);
+
   function constructor() {
     this.addToEnv(Symbol.make('car'), new Subr(this.subrCar), this.g_env);
     this.addToEnv(Symbol.make('cdr'), new Subr(this.subrCdr), this.g_env);
     this.addToEnv(Symbol.make('cons'), new Subr(this.subrCons), this.g_env);
+    this.addToEnv(Symbol.make('eq'), new Subr(this.subrEq), this.g_env);
+    this.addToEnv(Symbol.make('atom'), new Subr(this.subrAtom), this.g_env);
+    this.addToEnv(Symbol.make('numberp'),
+                  new Subr(this.subrNumberp), this.g_env);
+    this.addToEnv(Symbol.make('symbolp'),
+                  new Subr(this.subrSymbolp), this.g_env);
+    this.addToEnv(Symbol.make('+'), new Subr(this.subrAdd), this.g_env);
+    this.addToEnv(Symbol.make('*'), new Subr(this.subrMul), this.g_env);
+    this.addToEnv(Symbol.make('-'), new Subr(this.subrSub), this.g_env);
+    this.addToEnv(Symbol.make('/'), new Subr(this.subrDiv), this.g_env);
+    this.addToEnv(Symbol.make('mod'), new Subr(this.subrMod), this.g_env);
     this.addToEnv(Symbol.make('t'), Symbol.make('t'), this.g_env);
   }
 }
