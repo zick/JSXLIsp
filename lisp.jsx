@@ -104,14 +104,63 @@ class Expr extends LObj {
   override function env() : LObj { return this.env_; }
 }
 
+class ParserState {
+  var obj : LObj;
+  var next : string;
+  function constructor(o : LObj, n : string) {
+    this.obj = o;
+    this.next = n;
+  }
+}
+
 class Lisp {
   var kLPar = '(';
   var kRPar = ')';
   var kQuote = "'";
   var kNil = Nil.nil;
 
-  function read(str : string) : LObj {
+  function isDelimiter(c : string) : boolean {
+    return c == this.kLPar || c == this.kRPar || c == this.kQuote ||
+           c.match(/\s+/);
+  }
+
+  function skipSpaces(str : string) : string {
+    return str.replace(/^\s+/, '');
+  }
+
+  function makeNumOrSym(str : string) : LObj {
+    var num = str as number;
+    if (num.toString() == str) {
+      return new Num(num);
+    }
     return Symbol.make(str);
+  }
+
+  function readAtom(str : string) : ParserState {
+    var next = '';
+    for (var i = 0; i < str.length; i++) {
+      if (this.isDelimiter(str.charAt(i))) {
+        next = str.slice(i);
+
+        str = str.slice(0, i);
+        break;
+      }
+    }
+    return new ParserState(this.makeNumOrSym(str), next);
+  }
+
+  function read(str : string) : ParserState {
+    str = this.skipSpaces(str);
+    if (str.length == 0) {
+      return new ParserState(new Error1('empty input'), '');
+    } else if (str.charAt(0) == this.kRPar) {
+      return new ParserState(new Error1('invalid syntax: ' + str), '');
+    } else if (str.charAt(0) == this.kLPar) {
+      return new ParserState(new Error1('noimpl'), '');
+    } else if (str.charAt(0) == this.kQuote) {
+      return new ParserState(new Error1('noimpl'), '');
+    }
+    return this.readAtom(str);
   }
 }
 
