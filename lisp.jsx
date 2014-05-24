@@ -280,6 +280,11 @@ class Lisp {
       return this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
     } else if (op == Symbol.make('lambda')) {
       return new Expr(args, env);
+    } else if (op == Symbol.make('defun')) {
+      var expr = new Expr(Cons.safeCdr(args), env);
+      var sym = Cons.safeCar(args);
+      this.addToEnv(sym, expr, this.g_env);
+      return sym;
     }
     return this.apply(this.eval(op, env), this.evlis(args, env), env);
   }
