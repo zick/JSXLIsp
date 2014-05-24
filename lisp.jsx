@@ -130,6 +130,16 @@ class Lisp {
     return ret;
   }
 
+  function pairlis(lst1 : LObj, lst2 : LObj) : LObj {
+    var ret : LObj = Nil.nil;
+    while (lst1.tag == 'cons' && lst2.tag == 'cons') {
+      ret = new Cons(new Cons(lst1.car(), lst2.car()), ret);
+      lst1 = lst1.cdr();
+      lst2 = lst2.cdr();
+    }
+    return this.nreverse(ret);
+  }
+
   function isDelimiter(c : string) : boolean {
     return c == this.kLPar || c == this.kRPar || c == this.kQuote ||
            c.match(/\s+/);
@@ -268,6 +278,8 @@ class Lisp {
         return this.eval(Cons.safeCar(Cons.safeCdr(Cons.safeCdr(args))), env);
       }
       return this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
+    } else if (op == Symbol.make('lambda')) {
+      return new Expr(args, env);
     }
     return this.apply(this.eval(op, env), this.evlis(args, env), env);
   }
@@ -285,6 +297,15 @@ class Lisp {
     return this.nreverse(ret);
   }
 
+  function progn(body : LObj, env : LObj) : LObj {
+    var ret : LObj = Nil.nil;
+    while (body.tag == 'cons') {
+      ret = this.eval(body.car(), env);
+      body = body.cdr();
+    }
+    return ret;
+  }
+
   function apply(fn : LObj, args : LObj, env : LObj) : LObj {
     if (fn.tag == 'error') {
       return fn;
@@ -292,6 +313,9 @@ class Lisp {
       return args;
     } else if (fn.tag == 'subr') {
       return fn.fn()(args);
+    } else if (fn.tag == 'expr') {
+      return this.progn(fn.body(),
+                        new Cons(this.pairlis(fn.args(), args), fn.env()));
     }
     return new Error1(this.printObj(fn) + ' is not function');
   }
