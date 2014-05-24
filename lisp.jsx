@@ -156,11 +156,67 @@ class Lisp {
     } else if (str.charAt(0) == this.kRPar) {
       return new ParserState(new Error1('invalid syntax: ' + str), '');
     } else if (str.charAt(0) == this.kLPar) {
-      return new ParserState(new Error1('noimpl'), '');
+      return this.readList(str.slice(1));
     } else if (str.charAt(0) == this.kQuote) {
-      return new ParserState(new Error1('noimpl'), '');
+      var s = this.read(str.slice(1));
+      return new ParserState(
+          new Cons(Symbol.make('quote'), new Cons(s.obj, Nil.nil)),
+          s.next);
     }
     return this.readAtom(str);
+  }
+
+  function readList(str : string) : ParserState {
+    var ret : LObj = Nil.nil;
+    while (true) {
+      str = this.skipSpaces(str);
+      if (str.length == 0) {
+        return new ParserState(new Error1('unfinished parenthesis'), '');
+      } else if (str.charAt(0) == this.kRPar) {
+        break;
+      }
+      var s = this.read(str);
+      if (s.obj.tag == 'error') {
+        return new ParserState(s.obj, '');
+      }
+      ret = new Cons(s.obj, ret);
+      str = s.next;
+    }
+    return new ParserState(this.nreverse(ret), str.slice(1));
+  }
+
+  function printObj(obj : LObj) : string {
+    var tag = obj.tag;
+    if (tag == 'sym' || tag == 'nil') {
+      return obj.str();
+    } else if (tag == 'num') {
+      return obj.num().toString();
+    } else if (tag == 'error') {
+      return '<error: ' + obj.str() + '>';
+    } else if (tag == 'cons') {
+      return this.printList(obj);
+    } else if (tag == 'subr' || tag == 'expr') {
+      return '<' + tag + '>';
+    }
+    return '<unknown>';
+  }
+
+  function printList(obj : LObj) : string {
+    var ret = '';
+    var first = true;
+    while (obj.tag == 'cons') {
+      if (first) {
+        first = false;
+      } else {
+        ret += ' ';
+      }
+      ret += this.printObj(obj.car());
+      obj = obj.cdr();
+    }
+    if (obj.tag == 'nil') {
+      return '(' + ret + ')';
+    }
+    return '(' + ret + ' . ' + this.printObj(obj) + ')';
   }
 }
 
@@ -184,7 +240,7 @@ class _Main {
     stdin.setEncoding('utf8');
     process.stdout.write('> ');
     stdin.on('data', function (input : string) {
-      log lisp.read(input);
+      log lisp.printObj(lisp.read(input).obj);
       process.stdout.write('> ');
     });
   }
