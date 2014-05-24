@@ -258,10 +258,60 @@ class Lisp {
       }
       return bind.cdr();
     }
-    return new Error1('noimpl');
+
+    var op = Cons.safeCar(obj);
+    var args = Cons.safeCdr(obj);
+    if (op == Symbol.make('quote')) {
+      return Cons.safeCar(args);
+    } else if (op == Symbol.make('if')) {
+      if (this.eval(Cons.safeCar(args), env) == Nil.nil) {
+        return this.eval(Cons.safeCar(Cons.safeCdr(Cons.safeCdr(args))), env);
+      }
+      return this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
+    }
+    return this.apply(this.eval(op, env), this.evlis(args, env), env);
   }
 
+  function evlis(lst : LObj, env : LObj) : LObj {
+    var ret : LObj = Nil.nil;
+    while (lst.tag == 'cons') {
+      var elm = this.eval(lst.car(), env);
+      if (elm.tag == 'error') {
+        return elm;
+      }
+      ret = new Cons(elm, ret);
+      lst = lst.cdr();
+    }
+    return this.nreverse(ret);
+  }
+
+  function apply(fn : LObj, args : LObj, env : LObj) : LObj {
+    if (fn.tag == 'error') {
+      return fn;
+    } else if (args.tag == 'error') {
+      return args;
+    } else if (fn.tag == 'subr') {
+      return fn.fn()(args);
+    }
+    return new Error1(this.printObj(fn) + ' is not function');
+  }
+
+  var subrCar = function(args : LObj) : LObj {
+    return Cons.safeCar(Cons.safeCar(args));
+  };
+
+  var subrCdr = function(args : LObj) : LObj {
+    return Cons.safeCdr(Cons.safeCar(args));
+  };
+
+  var subrCons = function(args : LObj) : LObj {
+    return new Cons(Cons.safeCar(args), Cons.safeCar(Cons.safeCdr(args)));
+  };
+
   function constructor() {
+    this.addToEnv(Symbol.make('car'), new Subr(this.subrCar), this.g_env);
+    this.addToEnv(Symbol.make('cdr'), new Subr(this.subrCdr), this.g_env);
+    this.addToEnv(Symbol.make('cons'), new Subr(this.subrCons), this.g_env);
     this.addToEnv(Symbol.make('t'), Symbol.make('t'), this.g_env);
   }
 }
