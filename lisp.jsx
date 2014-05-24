@@ -117,7 +117,18 @@ class Lisp {
   var kLPar = '(';
   var kRPar = ')';
   var kQuote = "'";
-  var kNil = Nil.nil;
+  var g_env = new Cons(Nil.nil, Nil.nil);
+
+  function nreverse(lst : LObj) : LObj {
+    var ret : LObj = Nil.nil;
+    while (lst.tag == 'cons') {
+      var tmp = lst.cdr();
+      lst.set_cdr(ret);
+      ret = lst;
+      lst = tmp;
+    }
+    return ret;
+  }
 
   function isDelimiter(c : string) : boolean {
     return c == this.kLPar || c == this.kRPar || c == this.kQuote ||
@@ -218,6 +229,41 @@ class Lisp {
     }
     return '(' + ret + ' . ' + this.printObj(obj) + ')';
   }
+
+  function findVar(sym : LObj, env : LObj) : LObj {
+    while (env.tag == 'cons') {
+      var alist = env.car();
+      while (alist.tag == 'cons') {
+        if (alist.car().car() == sym) {
+          return alist.car();
+        }
+        alist = alist.cdr();
+      }
+      env = env.cdr();
+    }
+    return Nil.nil;
+  }
+
+  function addToEnv(sym : LObj, val : LObj, env : LObj) : void {
+    env.set_car(new Cons(new Cons(sym, val), env.car()));
+  }
+
+  function eval(obj : LObj, env : LObj) : LObj {
+    if (obj.tag == 'nil' || obj.tag == 'num' || obj.tag == 'error') {
+      return obj;
+    } else if (obj.tag == 'sym') {
+      var bind = this.findVar(obj, env);
+      if (bind == Nil.nil) {
+        return new Error1(obj.str() + ' has no value');
+      }
+      return bind.cdr();
+    }
+    return new Error1('noimpl');
+  }
+
+  function constructor() {
+    this.addToEnv(Symbol.make('t'), Symbol.make('t'), this.g_env);
+  }
 }
 
 native __fake__ class Process {
@@ -240,7 +286,7 @@ class _Main {
     stdin.setEncoding('utf8');
     process.stdout.write('> ');
     stdin.on('data', function (input : string) {
-      log lisp.printObj(lisp.read(input).obj);
+      log lisp.printObj(lisp.eval(lisp.read(input).obj, lisp.g_env));
       process.stdout.write('> ');
     });
   }
