@@ -53,6 +53,8 @@ class Symbol extends LObj {
   static var lambda = Symbol.make('lambda');
   static var defun = Symbol.make('defun');
   static var setq = Symbol.make('setq');
+  static var loop = Symbol.make('loop');
+  static var return1 = Symbol.make('return');
 }
 
 class Num extends LObj {
@@ -125,6 +127,7 @@ class Lisp {
   var kRPar = ')';
   var kQuote = "'";
   var g_env = new Cons(Nil.nil, Nil.nil);
+  var loop_val : LObj = Nil.nil;
 
   function nreverse(lst : LObj) : LObj {
     var ret : LObj = Nil.nil;
@@ -281,7 +284,10 @@ class Lisp {
     if (op == Symbol.quote) {
       return Cons.safeCar(args);
     } else if (op == Symbol.if1) {
-      if (this.eval(Cons.safeCar(args), env) == Nil.nil) {
+      var cond = this.eval(Cons.safeCar(args), env);
+      if (cond.tag == 'error') {
+        return cond;
+      } else if (cond == Nil.nil) {
         return this.eval(Cons.safeCar(Cons.safeCdr(Cons.safeCdr(args))), env);
       }
       return this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
@@ -294,6 +300,9 @@ class Lisp {
       return sym;
     } else if (op == Symbol.setq) {
       var val = this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
+      if (val.tag == 'error') {
+        return val;
+      }
       var sym = Cons.safeCar(args);
       var bind = this.findVar(sym, env);
       if (bind == Nil.nil) {
@@ -302,6 +311,11 @@ class Lisp {
         bind.set_cdr(val);
       }
       return val;
+    } else if (op == Symbol.loop) {
+      return this.loop(args, env);
+    } else if (op == Symbol.return1) {
+      this.loop_val = this.eval(Cons.safeCar(args), env);
+      return new Error1('');
     }
     return this.apply(this.eval(op, env), this.evlis(args, env), env);
   }
@@ -323,9 +337,25 @@ class Lisp {
     var ret : LObj = Nil.nil;
     while (body.tag == 'cons') {
       ret = this.eval(body.car(), env);
+      if (ret.tag == 'error') {
+        return ret;
+      }
       body = body.cdr();
     }
     return ret;
+  }
+
+  function loop(body : LObj, env : LObj) : LObj {
+    while (true) {
+      var ret : LObj = this.progn(body, env);
+      if (ret.tag == 'error') {
+        if (ret.str() == '') {
+          return this.loop_val;
+        }
+        return ret;
+      }
+    }
+    return Nil.nil;  // Not reached.
   }
 
   function apply(fn : LObj, args : LObj, env : LObj) : LObj {
