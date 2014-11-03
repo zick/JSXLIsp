@@ -46,6 +46,13 @@ class Symbol extends LObj {
     this.name_ = name;
   }
   override function str() : string { return this.name_; }
+
+  static var t = Symbol.make('t');
+  static var quote = Symbol.make('quote');
+  static var if1 = Symbol.make('if');
+  static var lambda = Symbol.make('lambda');
+  static var defun = Symbol.make('defun');
+  static var setq = Symbol.make('setq');
 }
 
 class Num extends LObj {
@@ -181,7 +188,7 @@ class Lisp {
     } else if (str.charAt(0) == this.kQuote) {
       var s = this.read(str.slice(1));
       return new ParserState(
-          new Cons(Symbol.make('quote'), new Cons(s.obj, Nil.nil)),
+          new Cons(Symbol.quote, new Cons(s.obj, Nil.nil)),
           s.next);
     }
     return this.readAtom(str);
@@ -271,21 +278,21 @@ class Lisp {
 
     var op = Cons.safeCar(obj);
     var args = Cons.safeCdr(obj);
-    if (op == Symbol.make('quote')) {
+    if (op == Symbol.quote) {
       return Cons.safeCar(args);
-    } else if (op == Symbol.make('if')) {
+    } else if (op == Symbol.if1) {
       if (this.eval(Cons.safeCar(args), env) == Nil.nil) {
         return this.eval(Cons.safeCar(Cons.safeCdr(Cons.safeCdr(args))), env);
       }
       return this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
-    } else if (op == Symbol.make('lambda')) {
+    } else if (op == Symbol.lambda) {
       return new Expr(args, env);
-    } else if (op == Symbol.make('defun')) {
+    } else if (op == Symbol.defun) {
       var expr = new Expr(Cons.safeCdr(args), env);
       var sym = Cons.safeCar(args);
       this.addToEnv(sym, expr, this.g_env);
       return sym;
-    } else if (op == Symbol.make('setq')) {
+    } else if (op == Symbol.setq) {
       var val = this.eval(Cons.safeCar(Cons.safeCdr(args)), env);
       var sym = Cons.safeCar(args);
       var bind = this.findVar(sym, env);
@@ -352,11 +359,11 @@ class Lisp {
     var y = Cons.safeCar(Cons.safeCdr(args));
     if (x.tag == 'num' && y.tag == 'num') {
       if (x.num() == y.num()) {
-        return Symbol.make('t');
+        return Symbol.t;
       }
       return Nil.nil;
     } else if (x == y) {
-      return Symbol.make('t');
+      return Symbol.t;
     }
     return Nil.nil;
   };
@@ -365,19 +372,19 @@ class Lisp {
     if (Cons.safeCar(args).tag == 'cons') {
       return Nil.nil;
     }
-    return Symbol.make('t');
+    return Symbol.t;
   };
 
   var subrNumberp = function(args : LObj) : LObj {
     if (Cons.safeCar(args).tag == 'num') {
-      return Symbol.make('t');
+      return Symbol.t;
     }
     return Nil.nil;
   };
 
   var subrSymbolp = function(args : LObj) : LObj {
     if (Cons.safeCar(args).tag == 'sym') {
-      return Symbol.make('t');
+      return Symbol.t;
     }
     return Nil.nil;
   };
@@ -429,7 +436,7 @@ class Lisp {
     this.addToEnv(Symbol.make('-'), new Subr(this.subrSub), this.g_env);
     this.addToEnv(Symbol.make('/'), new Subr(this.subrDiv), this.g_env);
     this.addToEnv(Symbol.make('mod'), new Subr(this.subrMod), this.g_env);
-    this.addToEnv(Symbol.make('t'), Symbol.make('t'), this.g_env);
+    this.addToEnv(Symbol.t, Symbol.t, this.g_env);
   }
 }
 
